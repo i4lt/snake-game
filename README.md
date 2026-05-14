@@ -53,6 +53,6 @@ You can choose controls in the game:
 ## 🥇 Option 1 — Install .deb (Debian / Ubuntu / Linux Mint) ⭐ Recommended
 
 Download the `.deb` file from **Releases**, then install:
-
 ```bash
 sudo dpkg -i snake_1.0_amd64.deb
+snake
