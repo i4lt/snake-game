@@ -1,0 +1,219 @@
+#include <SFML/Graphics.hpp>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+#include <fstream>
+#include <iostream>
+
+const int WIDTH = 800;
+const int HEIGHT = 600;
+const int SIZE = 20;
+
+enum State { MENU, CONTROL, PLAY, GAMEOVER };
+enum ControlType { ARROWS, WASD };
+
+struct Segment {
+    int x, y;
+};
+
+int randX() { return std::rand() % (WIDTH / SIZE); }
+int randY() { return std::rand() % (HEIGHT / SIZE); }
+
+int main() {
+    sf::RenderWindow window(sf::VideoMode(sf::Vector2u(WIDTH, HEIGHT)), "SNAKE");
+    std::srand((unsigned)std::time(nullptr));
+
+    sf::Font font;
+    if (!font.openFromFile("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")) {
+        std::cout << "Font error\n";
+        return -1;
+    }
+
+    sf::Text title(font, "SNAKE", 60);
+    sf::Text menu(font, "PRESS ENTER", 28);
+    sf::Text credit(font, "i4lt", 20);
+    sf::Text gameover(font, "GAME OVER", 60);
+    sf::Text restart(font, "PRESS ENTER", 22);
+
+    State state = MENU;
+    ControlType ctrl = ARROWS;
+
+    std::vector<Segment> snake = {{20,15},{19,15},{18,15}};
+    Segment food = {randX(), randY()};
+
+    int dirX = 1, dirY = 0;
+
+    sf::Clock clock;
+    float delay = 0.12f;
+
+    auto centerX = [&](sf::Text &t) {
+        t.setPosition(sf::Vector2f(
+            WIDTH / 2.f - t.getGlobalBounds().size.x / 2.f,
+            t.getPosition().y
+        ));
+    };
+
+    auto reset = [&]() {
+        snake = {{20,15},{19,15},{18,15}};
+        dirX = 1;
+        dirY = 0;
+        food = {randX(), randY()};
+        delay = 0.12f;
+    };
+
+    while (window.isOpen()) {
+
+        // ================= EVENTS (SFML 3) =================
+        while (auto event = window.pollEvent()) {
+
+            if (event->is<sf::Event::Closed>()) {
+                window.close();
+            }
+
+            if (event->is<sf::Event::KeyPressed>()) {
+                auto key = event->getIf<sf::Event::KeyPressed>();
+                if (!key) continue;
+
+                if (state == MENU && key->code == sf::Keyboard::Key::Enter)
+                    state = CONTROL;
+
+                else if (state == CONTROL) {
+                    if (key->code == sf::Keyboard::Key::Enter)
+                        ctrl = ARROWS;
+
+                    if (key->code == sf::Keyboard::Key::Space)
+                        ctrl = WASD;
+
+                    reset();
+                    state = PLAY;
+                }
+
+                else if (state == GAMEOVER && key->code == sf::Keyboard::Key::Enter)
+                    state = MENU;
+            }
+        }
+
+        // ================= INPUT =================
+        if (state == PLAY) {
+
+            if (ctrl == ARROWS) {
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Up) && dirY != 1) { dirX = 0; dirY = -1; }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down) && dirY != -1) { dirX = 0; dirY = 1; }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left) && dirX != 1) { dirX = -1; dirY = 0; }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right) && dirX != -1) { dirX = 1; dirY = 0; }
+            } else {
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W) && dirY != 1) { dirX = 0; dirY = -1; }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S) && dirY != -1) { dirX = 0; dirY = 1; }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) && dirX != 1) { dirX = -1; dirY = 0; }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) && dirX != -1) { dirX = 1; dirY = 0; }
+            }
+
+            // ================= UPDATE =================
+            if (clock.getElapsedTime().asSeconds() > delay) {
+                clock.restart();
+
+                Segment head = snake.front();
+                head.x += dirX;
+                head.y += dirY;
+
+                snake.insert(snake.begin(), head);
+
+                if (head.x == food.x && head.y == food.y) {
+                    food = {randX(), randY()};
+                } else {
+                    snake.pop_back();
+                }
+
+                if (head.x < 0 || head.y < 0 ||
+                    head.x >= WIDTH / SIZE || head.y >= HEIGHT / SIZE) {
+                    state = GAMEOVER;
+                }
+
+                for (size_t i = 1; i < snake.size(); i++) {
+                    if (snake[i].x == head.x && snake[i].y == head.y) {
+                        state = GAMEOVER;
+                    }
+                }
+            }
+        }
+
+        // ================= DRAW =================
+        window.clear(sf::Color(15,15,22));
+
+        // MENU (CENTERED)
+        if (state == MENU) {
+
+            title.setPosition(sf::Vector2f(
+                WIDTH/2.f - title.getGlobalBounds().size.x/2.f, 120.f));
+
+            menu.setPosition(sf::Vector2f(
+                WIDTH/2.f - menu.getGlobalBounds().size.x/2.f, 240.f));
+
+            credit.setPosition(sf::Vector2f(
+                WIDTH/2.f - credit.getGlobalBounds().size.x/2.f, 500.f));
+
+            window.draw(title);
+            window.draw(menu);
+            window.draw(credit);
+        }
+
+        // CONTROL SCREEN
+        else if (state == CONTROL) {
+
+            sf::Text c1(font, "ENTER = ARROWS", 24);
+            sf::Text c2(font, "SPACE = WASD", 24);
+
+            title.setPosition(sf::Vector2f(
+                WIDTH/2.f - title.getGlobalBounds().size.x/2.f, 100.f));
+
+            c1.setPosition(sf::Vector2f(
+                WIDTH/2.f - c1.getGlobalBounds().size.x/2.f, 240.f));
+
+            c2.setPosition(sf::Vector2f(
+                WIDTH/2.f - c2.getGlobalBounds().size.x/2.f, 300.f));
+
+            window.draw(title);
+            window.draw(c1);
+            window.draw(c2);
+        }
+
+        // GAME OVER (CENTERED)
+        else if (state == GAMEOVER) {
+
+            gameover.setPosition(sf::Vector2f(
+                WIDTH/2.f - gameover.getGlobalBounds().size.x/2.f, 220.f));
+
+            restart.setPosition(sf::Vector2f(
+                WIDTH/2.f - restart.getGlobalBounds().size.x/2.f, 300.f));
+
+            window.draw(gameover);
+            window.draw(restart);
+        }
+
+        // GAME
+        else if (state == PLAY) {
+
+            sf::RectangleShape foodShape(sf::Vector2f(SIZE-2.f, SIZE-2.f));
+            foodShape.setFillColor(sf::Color(220,40,40));
+            foodShape.setPosition(sf::Vector2f(food.x*SIZE, food.y*SIZE));
+            window.draw(foodShape);
+
+            for (size_t i = 0; i < snake.size(); i++) {
+                sf::RectangleShape s(sf::Vector2f(SIZE-2.f, SIZE-2.f));
+                s.setFillColor(i == 0 ? sf::Color(120,255,120)
+                                      : sf::Color(60,200,90));
+
+                s.setPosition(sf::Vector2f(
+                    snake[i].x * SIZE,
+                    snake[i].y * SIZE
+                ));
+
+                window.draw(s);
+            }
+        }
+
+        window.display();
+    }
+
+    return 0;
+}
